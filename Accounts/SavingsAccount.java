@@ -1,20 +1,24 @@
-public class SavingsAccount extends BankAccount{
+package Accounts;
+
+import Exceptions.InsufficientFundsException;
+import Exceptions.InvalidTransactionException;
+
+public class SavingsAccount extends BankAccount {
     private static final double interestRate = 0.03;
 
-    SavingsAccount(String accountHolderName, int initialDeposit) {
+    public SavingsAccount(String accountHolderName, int initialDeposit) {
         super(accountHolderName, initialDeposit);
     }
 
-    public boolean withdraw(int amount) {
+    public void withdraw(double amount) throws InsufficientFundsException, InvalidTransactionException {
         if(amount <= 0) {
-            return false; // invalid withdrawal.negative amount
+            throw new InvalidTransactionException("Amount must be positive"); // invalid withdrawal.negative amount
         }
         else if(amount > balance) {
-            return false; // insufficient funds
+            throw new InsufficientFundsException("Insufficient funds"); // insufficient funds
         }
         else {
             balance -= amount;
-            return true; // successful withdrawal
         }
     }
 

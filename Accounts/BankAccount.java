@@ -1,3 +1,8 @@
+package Accounts;
+
+import Exceptions.InsufficientFundsException;
+import Exceptions.InvalidTransactionException;
+
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
@@ -34,15 +39,14 @@ public abstract class BankAccount {
       return accountNumber;
     }
 
-    public boolean deposit(int amount) {
-        if(amount > 0) {
-            balance += amount;
-            return true;   // success
+    public void deposit(double amount) {
+        if(amount <= 0) {
+            throw new IllegalArgumentException("Amount must be positive");
         }
-            return false;   // failure
+        balance += amount;
     }
 
-    public abstract boolean withdraw(int amount);
+    public abstract void withdraw(double amount) throws InsufficientFundsException, InvalidTransactionException;
 
     public double getBalance() {
         return balance;
