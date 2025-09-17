@@ -2,16 +2,18 @@ package Bank;
 import Accounts.BankAccount;
 import Accounts.CheckingAccount;
 import Accounts.SavingsAccount;
-import Exceptions.AccountNotFoundException;
-import Exceptions.InsufficientFundsException;
-import Exceptions.InvalidTransactionException;
+import Customers.Customer;
+import Exceptions.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class Bank {
     String name;
-    private static Map<String, BankAccount> accounts = new HashMap<>();
+    private static final Map<String, BankAccount> accounts = new HashMap<>();
+    private static final Map<String, Customer> customers = new HashMap<>();
 
     public Bank(String name) {
         this.name = name;
@@ -33,18 +35,12 @@ public class Bank {
        return accounts.get(accountNumber);
     }
 
-    public void deposit(String accountNumber, double amount) throws AccountNotFoundException{
+    public void deposit(String accountNumber, double amount) throws AccountNotFoundException, InvalidTransactionException{
         BankAccount account = getAccount(accountNumber);
         if(account == null) {
             throw new AccountNotFoundException("Account not found");
         }
-
-        try {
-            account.deposit(amount);
-            System.out.println("You've successfully deposited $" + amount + ".");
-        } catch (IllegalArgumentException e) {
-            System.out.println("Transfer failed: " + e.getMessage());
-        }
+        account.deposit(amount);
     }
 
     public void withdraw(String accountNumber, double amount) throws AccountNotFoundException, InsufficientFundsException,
@@ -56,31 +52,21 @@ public class Bank {
         account.withdraw(amount);
     }
 
-    public void transfer(String fromAccount, String toAccount, double amount) throws AccountNotFoundException{
+    public void transfer(String fromAccount, String toAccount, double amount) throws AccountNotFoundException,
+            InvalidTransactionException, InsufficientFundsException{
+
         BankAccount sendingAccount = getAccount(fromAccount);
         BankAccount receivingAccount = getAccount(toAccount);
 
-        if(sendingAccount == null || receivingAccount == null) {
-            throw new AccountNotFoundException("One of the accounts does not exist");
+        if(sendingAccount == null) {
+            throw new AccountNotFoundException("Sending Account not found");
         }
 
-        if(amount <= 0) {
-            throw new IllegalArgumentException("Amount must be positive");
+        if(receivingAccount == null) {
+            throw new AccountNotFoundException("Receiving account not found");
         }
-
-        try {
-            sendingAccount.withdraw(amount);
-            receivingAccount.deposit(amount);
-
-            System.out.println("Transfer of $" + amount + " from " + sendingAccount.getAccountHolderName() + " to " +
-                    receivingAccount.getAccountHolderName() + " completed.");
-        }
-        catch (InsufficientFundsException | InvalidTransactionException e) {
-            System.out.println("Transfer failed: " + e.getMessage());
-        }
-        catch (IllegalArgumentException e) {
-            System.out.println("Invalid argument: " + e.getMessage());
-        }
+        sendingAccount.withdraw(amount);
+        receivingAccount.deposit(amount);
     }
 
     public void listAccounts() {
@@ -102,5 +88,85 @@ public class Bank {
             total += account.getBalance();
         }
         System.out.println("Total assets: $" + total);
+    }
+
+    public String createCustomer(String name, String email) {
+        Customer customer = new Customer(name, email);
+        customers.put(customer.getCustomerId(), customer);
+        return customer.getCustomerId();
+    }
+
+    public Customer getCustomer(String customerId) throws CustomerNotFoundException {
+        Customer customer = customers.get(customerId);
+        if(customer == null) {
+            throw new CustomerNotFoundException("Customer not found");
+        }
+        return customer;
+    }
+
+    public String openAccountForCustomer(String customerId, String accountType, int initialDeposit, int overDraftLimit)
+            throws CustomerNotFoundException{
+           Customer customer = getCustomer(customerId);
+
+           String type = accountType.toLowerCase();
+           String accountNumber = switch (type) {
+               case "savings" -> openAccount(customer.getName(), initialDeposit);
+               case "checking" -> openAccount(customer.getName(), initialDeposit, overDraftLimit);
+               default -> throw new IllegalArgumentException("Invalid Account Type: " + accountType);
+           };
+
+           customer.addAccountNumber(accountNumber);
+
+           return accountNumber;
+    }
+
+    public void closeAccountForCustomer(String accountNumber) throws AccountNotFoundException{
+        Customer owner = null;
+
+        for(Customer customer : customers.values()) {
+            if (customer.getAccountNumbers().contains(accountNumber)) {
+                owner = customer;
+            }
+        }
+
+        if(owner == null) {
+            throw new AccountNotFoundException("No customer linked to account: " + accountNumber);
+        }
+
+        closeAccount(accountNumber);
+        owner.removeAccountNumber(accountNumber);
+    }
+
+    public void deleteCustomer(String customerId) throws CustomerNotFoundException, CustomerHasOpenAccountsException {
+        Customer customer = getCustomer(customerId);
+
+        if(!customer.getAccountNumbers().isEmpty()){
+            throw new CustomerHasOpenAccountsException("Customer has open accounts. Please close them.");
+        }
+
+        customers.remove(customerId);
+    }
+
+    public List<BankAccount> listCustomerAccounts(String customerId) throws CustomerNotFoundException{
+        Customer customer = getCustomer(customerId);
+
+        List<String> customerAccountNumbers = customer.getAccountNumbers();
+
+        List<BankAccount> customerAccounts = new ArrayList<>();
+
+        for(String number : customerAccountNumbers) {
+            BankAccount account = getAccount(number);
+            if(account != null) {
+            customerAccounts.add(account);
+            }
+        }
+
+        return customerAccounts;
+    }
+
+    public void printCustomerAccounts(List<BankAccount> customerAccounts) {
+        for (BankAccount account : customerAccounts) {
+            System.out.println(account);
+        }
     }
 }
