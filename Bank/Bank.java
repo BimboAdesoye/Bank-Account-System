@@ -4,16 +4,16 @@ import Accounts.CheckingAccount;
 import Accounts.SavingsAccount;
 import Customers.Customer;
 import Exceptions.*;
+import Transactions.Transaction;
+import Transactions.TransactionType;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class Bank {
     String name;
     private static final Map<String, BankAccount> accounts = new HashMap<>();
     private static final Map<String, Customer> customers = new HashMap<>();
+    List<Transaction> transactions = new ArrayList<>();
 
     public Bank(String name) {
         this.name = name;
@@ -22,17 +22,19 @@ public class Bank {
     public String openAccount(String accountHolderName, int initialDeposit) {
         SavingsAccount savingsAccount = new SavingsAccount(accountHolderName, initialDeposit);
         accounts.put(savingsAccount.getAccountNumber(), savingsAccount);
+        recordTransaction(TransactionType.DEPOSIT, initialDeposit, null, savingsAccount.getAccountNumber());
         return savingsAccount.getAccountNumber();
     }
 
     public String openAccount(String accountHolderName, int initialDeposit, int overDraftLimit) {
         CheckingAccount checkingAccount = new CheckingAccount(accountHolderName, initialDeposit, overDraftLimit);
         accounts.put(checkingAccount.getAccountNumber(), checkingAccount);
+        recordTransaction(TransactionType.DEPOSIT, initialDeposit, null, checkingAccount.getAccountNumber());
         return checkingAccount.getAccountNumber();
     }
 
     public BankAccount getAccount(String accountNumber) {
-       return accounts.get(accountNumber);
+       return accounts.get(accountNumber.trim().toUpperCase());
     }
 
     public void deposit(String accountNumber, double amount) throws AccountNotFoundException, InvalidTransactionException{
@@ -41,6 +43,7 @@ public class Bank {
             throw new AccountNotFoundException("Account not found");
         }
         account.deposit(amount);
+        recordTransaction(TransactionType.DEPOSIT, amount, null, accountNumber);
     }
 
     public void withdraw(String accountNumber, double amount) throws AccountNotFoundException, InsufficientFundsException,
@@ -50,6 +53,7 @@ public class Bank {
             throw new AccountNotFoundException("Account not found");
         }
         account.withdraw(amount);
+        recordTransaction(TransactionType.WITHDRAWAL, amount, accountNumber, null);
     }
 
     public void transfer(String fromAccount, String toAccount, double amount) throws AccountNotFoundException,
@@ -67,6 +71,8 @@ public class Bank {
         }
         sendingAccount.withdraw(amount);
         receivingAccount.deposit(amount);
+
+        recordTransaction(TransactionType.TRANSFER, amount, fromAccount, toAccount);
     }
 
     public void listAccounts() {
@@ -169,4 +175,65 @@ public class Bank {
             System.out.println(account);
         }
     }
+
+    public String recordTransaction(TransactionType transactionType, double amount, String fromAccount, String toAccount){
+        Transaction transaction = new Transaction(transactionType, amount, fromAccount, toAccount);
+        transactions.add(transaction);
+        return transaction.getTransactionID();
+    }
+
+    public void listTransactions() {
+        if(transactions.isEmpty()) {
+            System.out.println("There are no transactions");
+        }
+        else {
+            for(Transaction transaction : transactions) {
+               System.out.println(transaction);
+           }
+        }
+    }
+
+    public List<Transaction> listTransactionsForAccount(String accountNumber){
+        List<Transaction> accountTransactions = new ArrayList<>();
+
+        for(Transaction transaction : transactions) {
+            if(accountNumber.equals(transaction.getToAccount()) || accountNumber.equals(transaction.getFromAccount())) {
+                 accountTransactions.add(transaction);
+            }
+        }
+        return accountTransactions;
+    }
+
+    public List<Transaction> listTransactionsForCustomers(String customerId) throws CustomerNotFoundException{
+        Customer customer = getCustomer(customerId);
+        List<String> accountNumbers = customer.getAccountNumbers();
+
+        Set<Transaction> customerTransactions = new HashSet<>(); /* Set instead of List to prevent duplicates in case a transaction
+                                                                    happens between two accounts owned by the same customer.*/
+
+        for(Transaction transaction : transactions) {
+                if(accountNumbers.contains(transaction.getToAccount()) || accountNumbers.contains(transaction.getFromAccount())) {
+                    customerTransactions.add(transaction);
+                }
+            }
+
+        if(customerTransactions.isEmpty()) {
+            System.out.println("No transactions found for this customer");
+        }
+
+        return new ArrayList<>(customerTransactions);
+
+    }
+
+    public List<Transaction> listTransactionsByType(TransactionType transactionType) {
+        List<Transaction> typeTransactions = new ArrayList<>();
+
+        for(Transaction transaction : transactions) {
+            if(transactionType == transaction.getTransactionType()) {
+                typeTransactions.add(transaction);
+            }
+        }
+        return typeTransactions;
+    }
+
 }
