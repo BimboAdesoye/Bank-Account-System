@@ -22,14 +22,12 @@ public class Bank {
     public String openAccount(String accountHolderName, int initialDeposit) {
         SavingsAccount savingsAccount = new SavingsAccount(accountHolderName, initialDeposit);
         accounts.put(savingsAccount.getAccountNumber(), savingsAccount);
-        recordTransaction(TransactionType.DEPOSIT, initialDeposit, null, savingsAccount.getAccountNumber());
         return savingsAccount.getAccountNumber();
     }
 
     public String openAccount(String accountHolderName, int initialDeposit, int overDraftLimit) {
         CheckingAccount checkingAccount = new CheckingAccount(accountHolderName, initialDeposit, overDraftLimit);
         accounts.put(checkingAccount.getAccountNumber(), checkingAccount);
-        recordTransaction(TransactionType.DEPOSIT, initialDeposit, null, checkingAccount.getAccountNumber());
         return checkingAccount.getAccountNumber();
     }
 
@@ -43,7 +41,6 @@ public class Bank {
             throw new AccountNotFoundException("Account not found");
         }
         account.deposit(amount);
-        recordTransaction(TransactionType.DEPOSIT, amount, null, accountNumber);
     }
 
     public void withdraw(String accountNumber, double amount) throws AccountNotFoundException, InsufficientFundsException,
@@ -53,7 +50,6 @@ public class Bank {
             throw new AccountNotFoundException("Account not found");
         }
         account.withdraw(amount);
-        recordTransaction(TransactionType.WITHDRAWAL, amount, accountNumber, null);
     }
 
     public void transfer(String fromAccount, String toAccount, double amount) throws AccountNotFoundException,
@@ -72,7 +68,7 @@ public class Bank {
         sendingAccount.withdraw(amount);
         receivingAccount.deposit(amount);
 
-        recordTransaction(TransactionType.TRANSFER, amount, fromAccount, toAccount);
+//        recordTransaction(TransactionType.TRANSFER, amount, fromAccount, toAccount);
     }
 
     public void listAccounts() {
@@ -176,10 +172,10 @@ public class Bank {
         }
     }
 
-    public String recordTransaction(TransactionType transactionType, double amount, String fromAccount, String toAccount){
-        Transaction transaction = new Transaction(transactionType, amount, fromAccount, toAccount);
+    public void recordTransaction(TransactionType transactionType, double amount, String fromAccount, String toAccount, String status){
+        Transaction transaction = new Transaction(transactionType, amount, fromAccount, toAccount, status);
         transactions.add(transaction);
-        return transaction.getTransactionID();
+//        return transaction.getTransactionID();
     }
 
     public void listTransactions() {
@@ -234,6 +230,22 @@ public class Bank {
             }
         }
         return typeTransactions;
+    }
+
+    public List<Transaction> listTransactionByStatus(String status) throws IllegalArgumentException{
+        List<Transaction> statusTransactions = new ArrayList<>();
+
+        if (!status.equals("SUCCESS") && !status.equals("FAILED")) {
+            throw new IllegalArgumentException("Invalid input. Please enter SUCCESS/FAILED");
+        }
+
+        for(Transaction transaction : transactions) {
+            if(transaction.getStatus().equals(status)) {
+                statusTransactions.add(transaction);
+            }
+        }
+
+        return statusTransactions;
     }
 
 }
